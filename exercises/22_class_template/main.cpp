@@ -1,4 +1,5 @@
 ﻿#include "../exercise.h"
+#include <cstring>
 
 // READ: 类模板 <https://zh.cppreference.com/w/cpp/language/class_template>
 
@@ -9,6 +10,10 @@ struct Tensor4D {
 
     Tensor4D(unsigned int const shape_[4], T const *data_) {
         unsigned int size = 1;
+        for (size_t i = 0; i < 4; ++i) {
+            size *= shape_[i];
+            shape[i] = shape_[i];
+        }
         // TODO: 填入正确的 shape 并计算 size
         data = new T[size];
         std::memcpy(data, data_, size * sizeof(T));
@@ -28,6 +33,46 @@ struct Tensor4D {
     // 则 `this` 与 `others` 相加时，3 个形状为 `[1, 2, 1, 4]` 的子张量各自与 `others` 对应项相加。
     Tensor4D &operator+=(Tensor4D const &others) {
         // TODO: 实现单向广播的加法
+        
+        // 保存四维下标中第 i 维的值应该偏移的基数
+        unsigned int offset_base_this[4] = {0, 0, 0, 1};
+        unsigned int offset_base_other[4] = {0, 0, 0, 1};
+        for (int i = 2; i >= 0; --i) {
+            offset_base_this[i] = offset_base_this[i + 1] * shape[i + 1];
+            offset_base_other[i] = offset_base_other[i + 1] * others.shape[i + 1];
+            // std::cout << i << ": " << offset_base_this[i] << ", " << offset_base_other[i] << std::endl;
+        }
+
+        // 遍历比较 this 和 others 的 shape，并记录 others 中与 this 不同且为 1 的下标
+        for (int i = 0; i < 4; ++i) {
+            // std::cout << shape[i] << " " << others.shape[i] << std::endl;
+            // 如果 others 中对应下标和 this 的下标不同，其偏移量设置为 0
+            if (shape[i] != others.shape[i] && others.shape[i] == 1) {
+                offset_base_other[i] = 0;
+            }
+        }
+        std::cout << std::endl;
+        // 遍历索引中的每一个元素，累加 others 中对应位置的值
+        for (unsigned int a = 0; a < shape[0]; ++a) {
+            for (unsigned int b = 0; b < shape[1]; ++b) {
+                for (unsigned int c = 0; c < shape[2]; ++c) {
+                    for (unsigned int d = 0; d < shape[3]; ++d) {
+                        // 根据偏移量计算当前位置的元素在哪
+                        int pos_this = a * offset_base_this[0] +
+                                       b * offset_base_this[1] +
+                                       c * offset_base_this[2] + 
+                                       d * offset_base_this[3];
+                        int pos_other = a * offset_base_other[0] +
+                                        b * offset_base_other[1] +
+                                        c * offset_base_other[2] + 
+                                        d * offset_base_other[3];
+                        // std::cout << a << "," << b << "," << c << "," << d << ": " << pos_this << " " << pos_other << std::endl;
+                        data[pos_this] += others.data[pos_other];
+                    }
+                }
+            }
+        }
+
         return *this;
     }
 };
